@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Petrol Premium · EC Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --black: #0e0e0c;
+    --offwhite: #f2f0e8;
+    --gold: #c8a84b;
+    --gold-dim: #7a6429;
+    --red: #c0392b;
+    --red-dim: #6b1f17;
+    --amber: #d4821a;
+    --amber-dim: #7a4a0c;
+    --green: #2e7d4f;
+    --green-dim: #174029;
+    --surface: #181814;
+    --surface2: #222220;
+    --surface3: #2c2c28;
+    --border: rgba(255,255,255,0.07);
+    --text-primary: #f2f0e8;
+    --text-secondary: rgba(242,240,232,0.5);
+    --text-muted: rgba(242,240,232,0.28);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--black);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+  .header-logo { font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: 0.04em; color: var(--gold); text-transform: uppercase; }
+  .header-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .refresh-btn {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px;
+    padding: 8px 14px; border-radius: 6px; cursor: pointer; letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .refresh-btn:active { opacity: 0.7; transform: scale(0.97); }
+  .spin { display: inline-block; }
+  .spinning { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* LAST UPDATED */
+  .status-bar {
+    background: var(--surface);
+    padding: 8px 20px;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; }
+  .status-dot.loading { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
+  .status-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* SETUP BANNER */
+  .setup-banner {
+    margin: 16px 16px 0;
+    background: var(--surface2);
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .setup-banner h3 { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--gold); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .setup-banner p { font-size: 11px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 10px; }
+  .setup-banner ol { font-size: 11px; color: var(--text-secondary); line-height: 1.8; padding-left: 16px; margin-bottom: 12px; }
+  .sheet-input-row { display: flex; gap: 8px; }
+  .sheet-input {
+    flex: 1; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
+    padding: 9px 12px; border-radius: 6px; outline: none;
+  }
+  .sheet-input:focus { border-color: var(--gold-dim); }
+  .sheet-input::placeholder { color: var(--text-muted); }
+  .load-btn {
+    background: var(--gold); color: var(--black); font-family: var(--font-display);
+    font-size: 12px; font-weight: 700; padding: 9px 16px; border-radius: 6px;
+    border: none; cursor: pointer; letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .load-btn:active { opacity: 0.8; }
+
+  /* SECTION HEADER */
+  .section-header {
+    padding: 20px 20px 10px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .section-title { font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+  .section-count { font-size: 10px; color: var(--text-muted); }
+
+  /* ROOM CARDS */
+  .rooms-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .room-card {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .room-card.status-red { border-color: rgba(192,57,43,0.4); }
+  .room-card.status-amber { border-color: rgba(212,130,26,0.3); }
+  .room-card.status-green { border-color: rgba(46,125,79,0.25); }
+
+  .room-card-header {
+    padding: 14px 16px 12px;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    cursor: pointer;
+  }
+  .room-label { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -0.01em; line-height: 1; }
+  .room-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em; margin-top: 3px; text-transform: uppercase; }
+
+  .status-badge {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
+  .status-pill {
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .status-pill.red { background: rgba(192,57,43,0.2); color: #e57373; border: 1px solid rgba(192,57,43,0.3); }
+  .status-pill.amber { background: rgba(212,130,26,0.2); color: #ffb74d; border: 1px solid rgba(212,130,26,0.3); }
+  .status-pill.green { background: rgba(46,125,79,0.2); color: #66bb6a; border: 1px solid rgba(46,125,79,0.25); }
+  .status-pill.grey { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* METRICS ROW */
+  .metrics-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--border);
+  }
+  .metric-cell {
+    padding: 10px 12px;
+    border-right: 1px solid var(--border);
+  }
+  .metric-cell:last-child { border-right: none; }
+  .metric-lbl { font-size: 9px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
+  .metric-num { font-size: 17px; font-weight: 500; line-height: 1; }
+  .metric-unit { font-size: 9px; color: var(--text-muted); }
+
+  /* EC TRAJECTORY */
+  .chart-section {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px 14px;
+    display: none;
+  }
+  .room-card.expanded .chart-section { display: block; }
+  .chart-label { font-size: 9px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .chart-wrap { position: relative; width: 100%; height: 120px; }
+
+  /* STRAIN TAGS */
+  .strains-row {
+    padding: 8px 14px 12px;
+    display: flex; flex-wrap: wrap; gap: 5px;
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .room-card.expanded .strains-row { display: flex; }
+  .strain-tag {
+    font-size: 10px; color: var(--text-secondary);
+    background: var(--surface3); border: 1px solid var(--border);
+    padding: 3px 8px; border-radius: 4px; letter-spacing: 0.03em;
+  }
+
+  /* THRESHOLD LEGEND */
+  .legend-card {
+    margin: 16px 16px 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .legend-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .legend-rows { display: flex; flex-direction: column; gap: 7px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-secondary); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ERROR / EMPTY */
+  .empty-state { padding: 60px 20px; text-align: center; }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-title { font-family: var(--font-display); font-size: 14px; color: var(--text-secondary); margin-bottom: 6px; }
+  .empty-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* CHEVRON */
+  .chevron { font-size: 12px; color: var(--text-muted); transition: transform 0.2s; margin-top: 2px; }
+  .room-card.expanded .chevron { transform: rotate(180deg); }
+
+  /* EC color helpers */
+  .ec-ok { color: #66bb6a; }
+  .ec-warn { color: #ffb74d; }
+  .ec-danger { color: #e57373; }
+
+  .traj-up { color: #e57373; }
+  .traj-flat { color: #ffb74d; }
+  .traj-down { color: #66bb6a; }
+
+  .cycle-day-bar {
+    height: 3px; background: var(--surface3); border-radius: 2px;
+    margin: 8px 16px 0; overflow: hidden;
+  }
+  .cycle-day-fill { height: 100%; border-radius: 2px; background: var(--gold); transition: width 0.5s ease; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">Petrol Premium</div>
+    <div class="header-sub">EC Cycle Monitor</div>
+  </div>
+  <button class="refresh-btn" onclick="loadData()">
+    <span class="spin" id="refreshIcon">↻</span> Refresh
+  </button>
+</div>
+
+<div class="status-bar">
+  <div><span class="status-dot" id="statusDot"></span><span id="statusText">Not loaded</span></div>
+  <div id="lastUpdated"></div>
+</div>
+
+<div class="setup-banner" id="setupBanner">
+  <h3>⚡ Connect Your Run-Off Sheet</h3>
+  <p>If auto-load fails, make sure your sheet is set to <strong>"Anyone with the link can view"</strong>, then paste the sheet URL below:</p>
+  <ol>
+    <li>Open your Run-Off Google Sheet</li>
+    <li>Click <strong>Share</strong> → set to <strong>Anyone with the link → Viewer</strong></li>
+    <li>Copy the URL from your browser and paste it below</li>
+  </ol>
+  <div class="sheet-input-row">
+    <input class="sheet-input" id="sheetUrl" type="url" placeholder="Paste Google Sheet link here…" />
+    <button class="load-btn" onclick="loadFromInput()">Load</button>
+  </div>
+</div>
+
+<div id="mainContent" style="display:none;">
+  <div class="legend-card">
+    <div class="legend-title">EC Danger Thresholds</div>
+    <div class="legend-rows">
+      <div class="legend-row"><span class="legend-dot" style="background:#66bb6a"></span>On track — under 35% of days above EC 5.0</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#ffb74d"></span>Watch — 35–50% of days above EC 5.0</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#e57373"></span>Danger — over 50% of days above EC 5.0 · top shelf at risk</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">Active Cycles</div>
+    <div class="section-count" id="cycleCount"></div>
+  </div>
+  <div class="rooms-list" id="roomsList"></div>
+</div>
+
+<div id="emptyState" style="display:none;" class="empty-state">
+  <div class="empty-icon">📡</div>
+  <div class="empty-title">No data loaded</div>
+  <div class="empty-sub">Paste your published Google Sheet CSV URL above and tap Load.</div>
+</div>
+
+<script>
+const SHEET_ID = '1T6obKZzDx40WSWeSpA4xdTSSc1ZHt4PRCGWd132RwSI';
+
+const ROOM_MAP = {
+  'Flower 1 East': '1E', 'Flower 1 West': '1W',
+  'Flower 2 North': '2N', 'Flower 2 South': '2S',
+  'Flower 3 North': '3N', 'Flower 3 South': '3S',
+  'Flower 4': '4', 'Flower 4 West (NEW)': '4W',
+  'Flower 5': '5', 'Flower 6': '6'
+};
+
+const HARVEST_ROOMS = [
+  { id: '1', label: 'Room 1', subs: ['1E', '1W'] },
+  { id: '2', label: 'Room 2', subs: ['2N', '2S'] },
+  { id: '3', label: 'Room 3', subs: ['3N', '3S'] },
+  { id: '4', label: 'Room 4', subs: ['4', '4W'] },
+  { id: '5', label: 'Room 5', subs: ['5'] },
+  { id: '6', label: 'Room 6', subs: ['6'] },
+];
+
+// A room whose last log entry is older than this many days is
+// considered "pending harvest" rather than actively flowering
+const STALE_DAYS = 25;
+// Cycle detection: gaps >= this many days = new cycle
+const CYCLE_GAP_DAYS = 8;
+
+let charts = {};
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + (state === 'ok' ? '' : state);
+  txt.textContent = text;
+}
+
+function toFloat(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function parseDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  return parseGvizDate(v);
+}
+
+function daysBetween(a, b) {
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+// ── Cycle detection ────────────────────────────────────────────────────────
+function detectCycles(entries) {
+  if (!entries.length) return [];
+  // Sort by date ascending
+  const sorted = [...entries].sort((a, b) => a.date - b.date);
+  const cycles = [];
+  let current = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const gap = daysBetween(sorted[i - 1].date, sorted[i].date);
+    if (gap >= CYCLE_GAP_DAYS) {
+      cycles.push(current);
+      current = [sorted[i]];
+    } else {
+      current.push(sorted[i]);
+    }
+  }
+  cycles.push(current);
+  return cycles;
+}
+
+// ── Stats for one cycle (array of entries) ─────────────────────────────────
+function calcCycleStats(cycle) {
+  const today = new Date();
+  const ecVals = cycle.map(e => e.ec).filter(v => v !== null && v > 0 && v < 20);
+  const roVals = cycle.map(e => e.roPct).filter(v => v !== null && v > 0 && v <= 150);
+
+  const avgEc = ecVals.length ? ecVals.reduce((a, b) => a + b, 0) / ecVals.length : null;
+  const avgRo = roVals.length ? roVals.reduce((a, b) => a + b, 0) / roVals.length : null;
+
+  const highEcDays = ecVals.filter(v => v > 5.0).length;
+  const highEcPct  = ecVals.length ? (highEcDays / ecVals.length) * 100 : null;
+
+  // 7-day trend: avg EC of last 7 readings vs first 7 readings of cycle
+  const recent = ecVals.slice(-7);
+  const early  = ecVals.slice(0, 7);
+  const recentAvg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : null;
+  const earlyAvg  = early.length  ? early.reduce((a, b)  => a + b, 0) / early.length  : null;
+  const trajectory = (recentAvg !== null && earlyAvg !== null) ? recentAvg - earlyAvg : null;
+
+  // Projected TS% — linear model from our cycle-matched analysis
+  // TS% ≈ 63 − 0.35 × (% days above EC 5.0)
+  const projectedTs = highEcPct !== null
+    ? Math.max(20, Math.min(75, 63 - 0.35 * highEcPct))
+    : null;
+
+  const status = highEcPct === null ? 'grey'
+    : highEcPct > 50 ? 'red'
+    : highEcPct > 35 ? 'amber'
+    : 'green';
+
+  const strains = [...new Set(cycle.map(e => e.strain).filter(Boolean))];
+
+  // Sort entries by date for display
+  const sorted = [...cycle].sort((a, b) => a.date - b.date);
+  const cycleStart = sorted[0].date;
+  const lastLog    = sorted[sorted.length - 1].date;
+
+  // Cycle day = days since first log entry + 1
+  const cycleDay   = daysBetween(cycleStart, today) + 1;
+  const daysStale  = daysBetween(lastLog, today);
+  const isStale    = daysStale > STALE_DAYS;
+
+  const dailyEc = sorted
+    .filter(e => e.ec !== null && e.ec > 0 && e.ec < 20)
+    .map(e => ({ date: e.date, ec: e.ec }));
+
+  return {
+    avgEc, avgRo, highEcPct, trajectory, projectedTs, status,
+    strains, cycleStart, lastLog, cycleDay, daysStale, isStale,
+    ecVals, dailyEc, n: cycle.length
+  };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function getStatusLabel(status, isStale) {
+  if (isStale) return 'Pending Harvest';
+  return { green: 'On track', amber: 'Watch', red: 'Danger', grey: 'No data' }[status];
+}
+function getStatusPillClass(status, isStale) {
+  if (isStale) return 'grey';
+  return status;
+}
+function getEcColorClass(ec) {
+  if (ec === null) return '';
+  return ec > 6.5 ? 'ec-danger' : ec > 5.0 ? 'ec-warn' : 'ec-ok';
+}
+function getTrajClass(traj) {
+  if (traj === null) return '';
+  return traj > 1.5 ? 'traj-up' : traj < -0.5 ? 'traj-down' : 'traj-flat';
+}
+
+function renderRooms(cyclesBySubRoom) {
+  const list = document.getElementById('roomsList');
+  list.innerHTML = '';
+  // Destroy existing charts
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  let activeCount = 0;
+
+  HARVEST_ROOMS.forEach(room => {
+    // Collect the latest cycle from each sub-room and merge entries
+    let allEntries = [];
+    room.subs.forEach(sub => {
+      const entries = cyclesBySubRoom[sub] || [];
+      if (!entries.length) return;
+      const cycles = detectCycles(entries);
+      if (cycles.length) {
+        // Always take the most recent cycle per sub-room
+        allEntries = allEntries.concat(cycles[cycles.length - 1]);
+      }
+    });
+
+    if (!allEntries.length) return;
+    activeCount++;
+
+    const stats = calcCycleStats(allEntries);
+    const pillClass   = getStatusPillClass(stats.status, stats.isStale);
+    const statusLabel = getStatusLabel(stats.status, stats.isStale);
+    const ecClass     = getEcColorClass(stats.avgEc);
+    const trajClass   = getTrajClass(stats.trajectory);
+
+    const trajStr = stats.trajectory !== null
+      ? (stats.trajectory >= 0 ? '+' : '') + stats.trajectory.toFixed(1) : '—';
+    const hiStr   = stats.highEcPct !== null ? Math.round(stats.highEcPct) + '%' : '—';
+    const ecStr   = stats.avgEc !== null ? stats.avgEc.toFixed(1) : '—';
+    const tsStr   = stats.projectedTs !== null ? Math.round(stats.projectedTs) + '%' : '—';
+
+    const cappedDay = Math.min(stats.cycleDay, 65);
+    const dayPct    = Math.min(100, (cappedDay / 65) * 100);
+    const subLabel  = room.subs.join(' + ');
+
+    // Stale rooms show muted progress bar
+    const barColor  = stats.isStale ? 'rgba(255,255,255,0.15)' : 'var(--gold)';
+    const dayLabel  = stats.isStale
+      ? `Day ${cappedDay}+ · Last log ${stats.daysStale}d ago`
+      : `Day ${cappedDay} of 65`;
+
+    const strainHtml = stats.strains.slice(0, 14).map(s =>
+      `<span class="strain-tag">${s}</span>`
+    ).join('');
+
+    const card = document.createElement('div');
+    card.className = `room-card status-${stats.isStale ? 'grey' : stats.status}`;
+    card.innerHTML = `
+      <div class="room-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="room-label">${room.label}</div>
+          <div class="room-sub">${subLabel} · ${dayLabel}</div>
+        </div>
+        <div class="status-badge">
+          <span class="status-pill ${pillClass}">${statusLabel}</span>
+          <span class="chevron">▾</span>
+        </div>
+      </div>
+      <div class="cycle-day-bar">
+        <div class="cycle-day-fill" style="width:${dayPct}%;background:${barColor}"></div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-cell">
+          <div class="metric-lbl">Avg EC</div>
+          <div class="metric-num ${ecClass}">${ecStr}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-lbl">EC &gt;5 days</div>
+          <div class="metric-num ${stats.status === 'red' ? 'ec-danger' : stats.status === 'amber' ? 'ec-warn' : 'ec-ok'}">${hiStr}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-lbl">7d trend</div>
+          <div class="metric-num ${trajClass}">${trajStr}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-lbl">Proj. TS%</div>
+          <div class="metric-num ${stats.projectedTs && stats.projectedTs < 48 ? 'ec-warn' : 'ec-ok'}">${tsStr}</div>
+        </div>
+      </div>
+      <div class="chart-section">
+        <div class="chart-label">Run-off EC · this cycle (${stats.dailyEc.length} readings)</div>
+        <div class="chart-wrap"><canvas id="chart-${room.id}"></canvas></div>
+      </div>
+      <div class="strains-row">${strainHtml}</div>
+    `;
+    list.appendChild(card);
+    requestAnimationFrame(() => buildChart(room.id, stats.dailyEc, stats.status, stats.isStale));
+  });
+
+  document.getElementById('cycleCount').textContent = `${activeCount} rooms active`;
+}
+
+function buildChart(roomId, dailyEc, status, isStale) {
+  const canvas = document.getElementById(`chart-${roomId}`);
+  if (!canvas) return;
+  if (charts[roomId]) { charts[roomId].destroy(); }
+
+  const lineColor = isStale ? '#888780'
+    : status === 'red' ? '#e57373'
+    : status === 'amber' ? '#ffb74d'
+    : '#66bb6a';
+
+  const labels = dailyEc.map((_, i) => `${i + 1}`);
+  const data   = dailyEc.map(d => d.ec);
+
+  charts[roomId] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: lineColor,
+        backgroundColor: lineColor + '18',
+        fill: true,
+        borderWidth: 1.5,
+        pointRadius: data.length > 30 ? 0 : 2,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => `EC ${ctx.parsed.y.toFixed(2)}` },
+          backgroundColor: '#222220', titleColor: '#f2f0e8',
+          bodyColor: '#f2f0e8', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1
+        },
+        annotation: {
+          annotations: {
+            threshold: {
+              type: 'line', yMin: 5.0, yMax: 5.0,
+              borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [4, 4]
+            }
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          min: 1, max: 10,
+          grid:  { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: 'rgba(242,240,232,0.35)', font: { size: 9, family: 'DM Mono' }, maxTicksLimit: 5 },
+          border: { color: 'transparent' }
+        }
+      }
+    }
+  });
+}
+
+function toggleCard(header) {
+  const card = header.closest('.room-card');
+  card.classList.toggle('expanded');
+}
+
+// ── Data processing ────────────────────────────────────────────────────────
+function processData(rows) {
+  const bySubRoom = {};
+
+  rows.forEach(row => {
+    // gviz column labels may vary — try named keys first, then positional
+    const keys = Object.keys(row);
+    const roomRaw = row['Room'] || row[keys[1]];
+    const sub = ROOM_MAP[roomRaw];
+    if (!sub) return;
+
+    const rawDate = row['Timestamp'] || row[keys[0]];
+    const date = parseDate(rawDate);
+    if (!date) return;
+
+    const ec   = toFloat(row['Run-Off EC']         || row[keys[5]]);
+    const feed = toFloat(row['Feed Amount (ml) ']  || row['Feed Amount (ml)'] || row[keys[3]]);
+    const ro   = toFloat(row['Run-Off Amount (ml)'] || row[keys[4]]);
+    const strain = (row['Strain Abr.'] || row[keys[2]] || '').toString().trim();
+    const roPct  = (feed && feed > 0 && ro && ro > 0) ? (ro / feed) * 100 : null;
+
+    if (!bySubRoom[sub]) bySubRoom[sub] = [];
+    bySubRoom[sub].push({
+      date,
+      ec:   (ec && ec > 0 && ec < 20) ? ec : null,
+      roPct: (roPct && roPct > 0 && roPct <= 150) ? roPct : null,
+      strain
+    });
+  });
+
+  return bySubRoom;
+}
+
+// ── Google Visualization JSONP fetch ───────────────────────────────────────
+let _cbIndex = 0;
+
+function gvizQuery(sheetId, callback) {
+  const cbName = `_gvizCb${_cbIndex++}`;
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cbName}&tq=${encodeURIComponent('select *')}&headers=1`;
+
+  window[cbName] = function(response) {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(null, response);
+  };
+
+  const script = document.createElement('script');
+  script.onerror = () => {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(new Error('Script load failed'));
+  };
+  script.src = url;
+  document.head.appendChild(script);
+}
+
+function parseGvizDate(v) {
+  // gviz sends datetime as the string "Date(year,month,day,h,m,s)"
+  // month is 0-indexed (0=Jan). Parse it directly.
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  const m = String(v).match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+  if (m) {
+    const d = new Date(+m[1], +m[2], +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Fallback: try native parse (handles "1/29/2025 10:35:53" etc.)
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function parseGvizResponse(response) {
+  const cols     = response.table.cols.map(c => c.label || c.id);
+  const colTypes = response.table.cols.map(c => c.type);
+
+  return response.table.rows.map(row => {
+    const obj = {};
+    row.c.forEach((cell, i) => {
+      if (!cell) { obj[cols[i]] = null; return; }
+      if (colTypes[i] === 'datetime' || colTypes[i] === 'date') {
+        // Use .v (the "Date(y,m,d,...)" string) — most reliable source
+        obj[cols[i]] = parseGvizDate(cell.v);
+      } else {
+        obj[cols[i]] = cell.v;
+      }
+    });
+    return obj;
+  });
+}
+
+function onDataLoaded(rows) {
+  const icon = document.getElementById('refreshIcon');
+  if (!rows || rows.length < 2) {
+    setStatus('error', 'No data found — is the sheet shared?');
+    document.getElementById('emptyState').style.display = 'block';
+    icon.classList.remove('spinning');
+    return;
+  }
+  const bySubRoom = processData(rows);
+  renderRooms(bySubRoom);
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('setupBanner').style.display = 'none';
+  setStatus('ok', `${rows.length} readings loaded`);
+  document.getElementById('lastUpdated').textContent =
+    'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  icon.classList.remove('spinning');
+}
+
+function loadData(sheetId) {
+  const icon = document.getElementById('refreshIcon');
+  icon.classList.add('spinning');
+  setStatus('loading', 'Connecting to Google Sheet…');
+
+  gvizQuery(sheetId || SHEET_ID, (err, response) => {
+    if (err || !response || !response.table) {
+      setStatus('error', 'Could not reach sheet — ensure sharing is set to "Anyone with link"');
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+      icon.classList.remove('spinning');
+      return;
+    }
+    try {
+      onDataLoaded(parseGvizResponse(response));
+    } catch(e) {
+      console.error('Parse error:', e);
+      setStatus('error', 'Failed to parse sheet data');
+      icon.classList.remove('spinning');
+    }
+  });
+}
+
+function loadFromInput() {
+  const raw = document.getElementById('sheetUrl').value.trim();
+  if (!raw) { loadData(); return; }
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  loadData(match ? match[1] : raw);
+}
+
+window.addEventListener('load', () => loadData());
+</script>
+</body>
+</html>
