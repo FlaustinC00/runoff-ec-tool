@@ -318,15 +318,11 @@
 
 <div class="setup-banner" id="setupBanner">
   <h3>⚡ Connect Your Run-Off Sheet</h3>
-  <p>If auto-load fails, make sure your sheet is set to <strong>"Anyone with the link can view"</strong>, then paste the sheet URL below:</p>
-  <ol>
-    <li>Open your Run-Off Google Sheet</li>
-    <li>Click <strong>Share</strong> → set to <strong>Anyone with the link → Viewer</strong></li>
-    <li>Copy the URL from your browser and paste it below</li>
-  </ol>
+  <p>The sheet URL is pre-filled below — just tap <strong>Load</strong> to connect.</p>
+  <p style="margin-top:6px;font-size:10px;color:rgba(242,240,232,0.35)">If it still fails, make sure the Google Sheet sharing is set to "Anyone with the link can view."</p>
   <div class="sheet-input-row">
     <input class="sheet-input" id="sheetUrl" type="url" placeholder="Paste Google Sheet link here…" />
-    <button class="load-btn" onclick="loadFromInput()">Load</button>
+    <button class="load-btn" onclick="loadFromInput()">Tap to Load</button>
   </div>
 </div>
 
@@ -1155,7 +1151,13 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.strain-tag')) hideStrainTooltip();
 });
 
-window.addEventListener('load', () => loadData());
+window.addEventListener('load', () => {
+  // Pre-fill the input box with the known sheet URL
+  const input = document.getElementById('sheetUrl');
+  if (input) input.value = 'https://docs.google.com/spreadsheets/d/1T6obKZzDx40WSWeSpA4xdTSSc1ZHt4PRCGWd132RwSI';
+  // Attempt auto-load
+  loadData();
+});
 </script>
 <!-- Strain sensitivity tooltip -->
 <div class="strain-tooltip" id="strainTooltip">
