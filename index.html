@@ -1185,7 +1185,7 @@ function gvizQuery(sheetId, callback) {
   script.onerror = () => {
     delete window[cbName];
     document.head.removeChild(script);
-    callback(new Error('Script load failed'));
+    callback(new Error('SCRIPT_LOAD_FAILED — sheet may not be shared publicly'));
   };
   script.src = url;
   document.head.appendChild(script);
@@ -1251,13 +1251,24 @@ function loadData(sheetId) {
 
   gvizQuery(sheetId || SHEET_ID, (err, response) => {
     if (err || !response || !response.table) {
-      setStatus('error', 'Could not reach sheet — ensure sharing is set to "Anyone with link"');
+      const errMsg = err ? err.message : 'empty response';
+      console.error('Sheet connection failed:', errMsg, response);
+      let userMsg = 'Sheet not accessible';
+      if (errMsg.includes('SCRIPT_LOAD_FAILED')) {
+        userMsg = 'Sheet blocked — set sharing to Anyone with link can view';
+      } else if (!response) {
+        userMsg = 'No response — check network';
+      } else if (response && !response.table) {
+        userMsg = 'Sheet responded but no data — check GID or sheet name';
+      }
+      setStatus('error', userMsg);
       document.getElementById('mainContent').style.display = 'none';
       document.getElementById('emptyState').style.display = 'block';
       icon.classList.remove('spinning');
       return;
     }
     try {
+      console.log('gviz success:', response.table?.rows?.length, 'rows,', response.table?.cols?.length, 'cols');
       onDataLoaded(parseGvizResponse(response));
     } catch(e) {
       console.error('Parse error:', e.message, e.stack);
