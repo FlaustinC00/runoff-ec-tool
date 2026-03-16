@@ -1155,7 +1155,7 @@ function processData(rows) {
     const dryBackRaw = row['Intentional Dry-Back Day'] || row[keys[11]] || '';
     const dryBack = String(dryBackRaw).toLowerCase().includes('yes');
     // ro: keep null distinct from 0 — null means no entry, 0 means logged zero
-    const roVal = to_float(row['Run-Off Amount (ml)'] || row[keys[4]]);
+    const roVal = toFloat(row['Run-Off Amount (ml)'] || row[keys[4]]);
     bySubRoom[sub].push({
       date,
       ec:     (ec && ec > 0 && ec < 20) ? ec : null,
